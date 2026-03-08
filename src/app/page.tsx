@@ -351,8 +351,7 @@ export default function App() {
               <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 rounded-2xl px-2 py-2 shadow-2xl focus-within:border-pink-500/50 transition-colors">
                 <button
                   type="button"
-                  onPointerDown={handleStartListening}
-                  onPointerUp={handleStopListening}
+                  onClick={toggleListening}
                   className={`p-5 rounded-2xl transition-all active:scale-90 touch-none ${isListening ? "bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.6)]" : "bg-white/5 text-gray-400 hover:text-white"}`}
                 >
                   <div className="flex items-center justify-center relative">
@@ -379,12 +378,12 @@ export default function App() {
                 {isListening ? (
                   <span className="flex items-center gap-1 text-red-500 animate-pulse">
                     <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                    Listening... (Release to Send)
+                    Listening... (Tap to Send)
                   </span>
                 ) : isSpeaking ? (
                   <span className="text-pink-500">Customer Speaking...</span>
                 ) : (
-                  "Hold Mic to Speak"
+                  "Tap Mic to Start Speaking"
                 )}
               </div>
             </div>
