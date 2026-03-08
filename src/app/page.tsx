@@ -353,11 +353,11 @@ export default function App() {
                   type="button"
                   onPointerDown={handleStartListening}
                   onPointerUp={handleStopListening}
-                  className={`p-3 rounded-xl transition-all active:scale-95 touch-none ${isListening ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]" : "bg-white/5 text-gray-400 hover:text-white"}`}
+                  className={`p-5 rounded-2xl transition-all active:scale-90 touch-none ${isListening ? "bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.6)]" : "bg-white/5 text-gray-400 hover:text-white"}`}
                 >
                   <div className="flex items-center justify-center relative">
-                    {isListening && <motion.div animate={{ scale: [1, 2.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute w-full h-full bg-red-500 rounded-full blur-xl -z-10" />}
-                    <Send className={`w-5 h-5 ${isListening ? "rotate-90 scale-125" : ""}`} />
+                    {isListening && <motion.div animate={{ scale: [1, 3, 1], opacity: [0.5, 0, 0.5] }} transition={{ repeat: Infinity, duration: 1.2 }} className="absolute w-full h-full bg-red-500 rounded-full blur-2xl -z-10" />}
+                    <Send className={`w-7 h-7 ${isListening ? "rotate-90 scale-125" : ""}`} />
                   </div>
                 </button>
                 <input
