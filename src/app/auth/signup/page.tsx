@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { LogIn, User, Lock, ArrowRight } from "lucide-react";
+import { UserPlus, User, Mail, Lock, ArrowRight, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default function SignIn() {
+export default function SignUp() {
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -16,18 +16,26 @@ export default function SignIn() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const result = await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-        });
 
-        if (result?.error) {
-            alert("ログインに失敗しました。メールアドレスまたはパスワードが正しくありません。");
+        try {
+            const res = await fetch("/api/auth/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, email, password }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert("登録が完了しました！ログインしてください。");
+                router.push("/auth/signin");
+            } else {
+                alert(data.error || "登録に失敗しました。");
+            }
+        } catch (error) {
+            alert("エラーが発生しました。");
+        } finally {
             setLoading(false);
-        } else {
-            router.push("/");
-            router.refresh();
         }
     };
 
@@ -39,18 +47,33 @@ export default function SignIn() {
                 className="w-full max-w-sm bg-[#121212] border border-white/10 rounded-3xl p-8 shadow-2xl"
             >
                 <div className="flex flex-col items-center text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-tr from-pink-500 to-violet-600 rounded-2xl mb-4 flex items-center justify-center shadow-lg">
-                        <LogIn className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 bg-gradient-to-tr from-violet-500 to-pink-600 rounded-2xl mb-4 flex items-center justify-center shadow-lg">
+                        <UserPlus className="w-8 h-8 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold">STAFF LOGIN</h1>
-                    <p className="text-gray-500 text-xs mt-2 uppercase tracking-widest">Counseling Training System</p>
+                    <h1 className="text-2xl font-bold">STAFF REGISTER</h1>
+                    <p className="text-gray-500 text-xs mt-2 uppercase tracking-widest">Create your training account</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                        <div className="relative">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <input
+                                type="text"
+                                required
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm focus:border-pink-500 transition-colors outline-none"
+                                placeholder="田中 太郎"
+                            />
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email</label>
                         <div className="relative">
-                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                             <input
                                 type="email"
                                 required
@@ -82,18 +105,16 @@ export default function SignIn() {
                         disabled={loading}
                         className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 mt-4 shadow-lg disabled:opacity-50"
                     >
-                        {loading ? "ログイン中..." : "ログイン"}
+                        {loading ? "登録中..." : "アカウントを作成"}
                         {!loading && <ArrowRight className="w-4 h-4" />}
                     </button>
                 </form>
 
-                <div className="mt-8 text-center flex flex-col gap-4">
-                    <Link href="/auth/signup" className="text-[10px] text-pink-500 font-bold uppercase tracking-widest hover:text-pink-400 transition-colors">
-                        Create new staff account
+                <div className="mt-8 text-center">
+                    <Link href="/auth/signin" className="inline-flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase tracking-widest hover:text-white transition-colors">
+                        <ArrowLeft className="w-3 h-3" />
+                        Back to Login
                     </Link>
-                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">
-                        Testing Admin: admin@example.com / admin123
-                    </p>
                 </div>
             </motion.div>
         </main>
