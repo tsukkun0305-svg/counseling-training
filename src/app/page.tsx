@@ -126,11 +126,28 @@ export default function App() {
     setLoading(false);
   };
 
-  const startChat = () => {
-    if (!persona) return;
-    unlockVoice(); // Re-unlock if needed
+  const handleCustomStart = () => {
+    setPersona({
+      basicInfo: {
+        age: customPersona.age,
+        occupation: customPersona.occupation,
+        lifestyle: customPersona.lifestyle
+      },
+      personality: {
+        type: customPersona.personality,
+        tone: customPersona.tone
+      },
+      surfaceNeed: customPersona.surfaceNeed,
+      hiddenNeed: customPersona.hiddenNeed,
+      initialImpression: customPersona.initialImpression
+    });
     setMessages([]);
     setStep("chat");
+    unlockVoice();
+  };
+
+  const applyPreset = (preset: any) => {
+    setCustomPersona(prev => ({ ...prev, ...preset }));
   };
 
   const handleSendMessage = async (overrideInput?: string) => {
