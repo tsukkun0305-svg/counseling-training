@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight } from "lucide-react";
+import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight, Mic } from "lucide-react";
 import { Radar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -357,11 +357,10 @@ export default function App() {
                 >
                   <div className="flex items-center justify-center relative">
                     {isListening && <motion.div animate={{ scale: [1, 3, 1], opacity: [0.5, 0, 0.5] }} transition={{ repeat: Infinity, duration: 1.2 }} className="absolute w-full h-full bg-red-500 rounded-full blur-2xl -z-10" />}
-                    <Send className={`w-7 h-7 ${isListening ? "rotate-90 scale-125" : ""}`} />
+                    <Mic className={`w-7 h-7 ${isListening ? "scale-125" : ""}`} />
                   </div>
                 </button>
                 <input
-                  autoFocus
                   className="flex-1 bg-transparent border-none outline-none text-sm py-2 placeholder:text-gray-600 ml-2"
                   placeholder={isListening ? "音声を認識しています..." : "メッセージを入力..."}
                   value={input}
