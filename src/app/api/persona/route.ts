@@ -2,36 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { customerModel } from "@/lib/gemini";
 
 export async function POST(req: NextRequest) {
-    try {
-        const prompt = `
-      You are a persona generator for a makeup counseling training app.
-      Generate a unique customer persona with the following JSON structure:
+  try {
+    const prompt = `
+      あなたはメイクレッスン・サロンの顧客ペルソナ生成器です。
+      トレーニング用に、具体的な悩みや背景を持つユニークな顧客を1人生成してください。
+
+      【生成のルール】
+      - 文脈: デパートのカウンターではなく、予約制のメイクレッスン・サロンに来店した設定です。
+      - 性格: 控えめで、自分からペラペラと状況を話さないタイプを優先的に生成してください。
+      - 表面的な悩み: 「一重をどうにかしたい」「垢抜けたい」など、抽象的な一言のみ。
+      - 裏設定（隠れニーズ）: 「来月、元彼の結婚式がある」「就活で清潔感を出したい」など、具体的な動機。
+      - 最初の一言: 挨拶と、表面的な悩みだけを伝えてください。
+
+      以下のJSON形式で出力してください：
       {
         "basicInfo": {
-          "age": "e.g. 20s",
-          "occupation": "e.g. Sales",
-          "lifestyle": "e.g. Busy, outdoor-heavy"
+          "age": "年齢層 (例: 20代)",
+          "occupation": "職業",
+          "lifestyle": "ライフスタイル"
         },
         "personality": {
-          "type": "e.g. Talkative, Shy, Logical, Emotional",
-          "tone": "e.g. Polite but distant"
+          "type": "性格のタイプ (例: 控えめ、口下手)",
+          "tone": "口調 (例: 丁寧だが最小限の返答)"
         },
-        "surfaceNeed": "The first problem they mention (e.g. Want to hide dark circles)",
-        "hiddenNeed": "The real motivation they only reveal when they trust the artist (e.g. Partner commented on looking tired, lost confidence)",
-        "initialImpression": "Greeting and the first sentence they say when entering the shop"
+        "surfaceNeed": "表面的な悩み (自分から最初に言うこと)",
+        "hiddenNeed": "隠れニーズ (聞かれない限り言わないこと)",
+        "initialImpression": "入店時、または開始時の最初の一言"
       }
-      The output MUST be only the JSON.
-      The language should be Japanese.
+      JSONのみを出力してください。日本語限定です。
     `;
 
-        const result = await customerModel.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        const persona = JSON.parse(text.replace(/```json|```/g, ""));
+    const result = await customerModel.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const persona = JSON.parse(text.replace(/```json|```/g, ""));
 
-        return NextResponse.json(persona);
-    } catch (error) {
-        console.error("Persona generation error:", error);
-        return NextResponse.json({ error: "Failed to generate persona" }, { status: 500 });
-    }
+    return NextResponse.json(persona);
+  } catch (error) {
+    console.error("Persona generation error:", error);
+    return NextResponse.json({ error: "Failed to generate persona" }, { status: 500 });
+  }
 }
