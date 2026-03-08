@@ -49,49 +49,79 @@ export default function App() {
   const [useVoice, setUseVoice] = useState(true);
 
   // --- Handlers ---
+  const unlockVoice = () => {
+    if (typeof window === "undefined" || !useVoice) return;
+    const uttr = new SpeechSynthesisUtterance("");
+    uttr.volume = 0;
+    window.speechSynthesis.speak(uttr);
+  };
+
   const speak = (text: string) => {
     if (!useVoice || typeof window === "undefined") return;
     window.speechSynthesis.cancel();
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = "ja-JP";
-    uttr.rate = 1.2; // Speed up the speech rate (default is 1.0)
-    // Choose a feminine voice if available for a customer persona
+    uttr.rate = 1.2;
     const voices = window.speechSynthesis.getVoices();
-    const femaleVoice = voices.find(v => v.name.includes("Nanami") || v.name.includes("Google 日本語"));
+    const femaleVoice = voices.find(v => v.name.includes("Nanami") || v.name.includes("Google 日本語") || v.lang === "ja-JP");
     if (femaleVoice) uttr.voice = femaleVoice;
 
     uttr.onstart = () => setIsSpeaking(true);
     uttr.onend = () => setIsSpeaking(false);
+    uttr.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(uttr);
   };
 
-  const startListening = () => {
-    if (typeof window === "undefined") return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("お使いのブラウザは音声認識に対応していません。");
+  const [recognition, setRecognition] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.lang = "ja-JP";
+        rec.continuous = true; // Stay active while button is held
+        rec.interimResults = true;
+
+        rec.onstart = () => setIsListening(true);
+        rec.onend = () => setIsListening(false);
+        rec.onerror = (e: any) => {
+          console.error("Speech error", e);
+          setIsListening(false);
+        };
+        rec.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0].transcript)
+            .join("");
+          setInput(transcript);
+        };
+        setRecognition(rec);
+      }
+    }
+  }, []);
+
+  const handleStartListening = () => {
+    if (!recognition) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) return alert("音声認識非対応のブラウザです。");
+      recognition?.start();
       return;
     }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ja-JP";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-      // Auto-send if needed, or just let the user confirm
-      handleSendMessage(transcript);
-    };
-
     recognition.start();
   };
 
+  const handleStopListening = () => {
+    if (recognition) {
+      recognition.stop();
+      // Use current input value for sending when released
+      if (input.trim()) {
+        handleSendMessage(input);
+      }
+    }
+  };
+
   const startGacha = async () => {
+    unlockVoice(); // Unlock TTS engine on user interaction
     setLoading(true);
     setStep("gacha");
     const res = await fetch("/api/persona", { method: "POST" });
@@ -102,6 +132,7 @@ export default function App() {
 
   const startChat = () => {
     if (!persona) return;
+    unlockVoice(); // Re-unlock if needed
     setMessages([]);
     setStep("chat");
   };
@@ -320,12 +351,13 @@ export default function App() {
               <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 rounded-2xl px-2 py-2 shadow-2xl focus-within:border-pink-500/50 transition-colors">
                 <button
                   type="button"
-                  onClick={startListening}
-                  className={`p-3 rounded-xl transition-all ${isListening ? "bg-red-500 text-white animate-pulse" : "bg-white/5 text-gray-400 hover:text-white"}`}
+                  onPointerDown={handleStartListening}
+                  onPointerUp={handleStopListening}
+                  className={`p-3 rounded-xl transition-all active:scale-95 touch-none ${isListening ? "bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]" : "bg-white/5 text-gray-400 hover:text-white"}`}
                 >
                   <div className="flex items-center justify-center relative">
-                    {isListening && <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="absolute w-full h-full bg-red-500 rounded-full blur-md -z-10" />}
-                    <Send className={`w-5 h-5 ${isListening ? "rotate-90" : ""}`} />
+                    {isListening && <motion.div animate={{ scale: [1, 2.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute w-full h-full bg-red-500 rounded-full blur-xl -z-10" />}
+                    <Send className={`w-5 h-5 ${isListening ? "rotate-90 scale-125" : ""}`} />
                   </div>
                 </button>
                 <input
@@ -344,8 +376,17 @@ export default function App() {
                   <ChevronRight className="w-5 h-5 text-white" />
                 </button>
               </div>
-              <div className="mt-2 text-[10px] text-center text-gray-600 font-bold uppercase tracking-widest">
-                {isListening ? "Speaking..." : isSpeaking ? "Customer Speaking..." : "Input via Voice or Text"}
+              <div className="mt-2 text-[10px] text-center text-gray-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
+                {isListening ? (
+                  <span className="flex items-center gap-1 text-red-500 animate-pulse">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                    Listening... (Release to Send)
+                  </span>
+                ) : isSpeaking ? (
+                  <span className="text-pink-500">Customer Speaking...</span>
+                ) : (
+                  "Hold Mic to Speak"
+                )}
               </div>
             </div>
           </div>
