@@ -1,65 +1,453 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight } from "lucide-react";
+import { Radar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+
+// --- Types ---
+type Persona = {
+  basicInfo: { age: string; occupation: string; lifestyle: string };
+  personality: { type: string; tone: string };
+  surfaceNeed: string;
+  hiddenNeed: string;
+  initialImpression: string;
+};
+
+type Message = { role: "user" | "assistant"; content: string };
+
+type Evaluation = {
+  scores: { listening: number; empathy: number; proposal: number };
+  feedbacks: string[];
+  hiddenNeedResults: { revealed: boolean; description: string };
+  summary: string;
+};
+
+export default function App() {
+  const [step, setStep] = useState<"home" | "gacha" | "chat" | "result">("home");
+  const [persona, setPersona] = useState<Persona | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [emotionalState, setEmotionalState] = useState({ trust: 20, caution: 50 });
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // --- Voice State ---
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [useVoice, setUseVoice] = useState(true);
+
+  // --- Handlers ---
+  const speak = (text: string) => {
+    if (!useVoice || typeof window === "undefined") return;
+    window.speechSynthesis.cancel();
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = "ja-JP";
+    uttr.rate = 1.2; // Speed up the speech rate (default is 1.0)
+    // Choose a feminine voice if available for a customer persona
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(v => v.name.includes("Nanami") || v.name.includes("Google 日本語"));
+    if (femaleVoice) uttr.voice = femaleVoice;
+
+    uttr.onstart = () => setIsSpeaking(true);
+    uttr.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(uttr);
+  };
+
+  const startListening = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("お使いのブラウザは音声認識に対応していません。");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      // Auto-send if needed, or just let the user confirm
+      handleSendMessage(transcript);
+    };
+
+    recognition.start();
+  };
+
+  const startGacha = async () => {
+    setLoading(true);
+    setStep("gacha");
+    const res = await fetch("/api/persona", { method: "POST" });
+    const data = await res.json();
+    setPersona(data);
+    setLoading(false);
+  };
+
+  const startChat = () => {
+    if (!persona) return;
+    setMessages([]);
+    setStep("chat");
+  };
+
+  const handleSendMessage = async (overrideInput?: string) => {
+    const textToSend = overrideInput || input;
+    if (!textToSend.trim() || loading) return;
+
+    const userMsg = { role: "user" as const, content: textToSend };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ messages: [...messages, userMsg], persona, emotionalState }),
+      });
+      const data = await res.json();
+
+      if (data.content) {
+        setMessages((prev) => [...prev, { role: "assistant", content: data.content }]);
+        speak(data.content);
+      }
+
+      if (data.emotionalUpdate) {
+        setEmotionalState((prev) => ({
+          trust: Math.min(100, Math.max(0, prev.trust + (data.emotionalUpdate.trustDelta ?? 0))),
+          caution: Math.min(100, Math.max(0, prev.caution + (data.emotionalUpdate.cautionDelta ?? 0))),
+        }));
+      }
+    } catch (e) {
+      console.error("Chat error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const endSession = async () => {
+    setLoading(true);
+    const res = await fetch("/api/evaluate", {
+      method: "POST",
+      body: JSON.stringify({ messages, persona }),
+    });
+    const data = await res.json();
+    setEvaluation(data);
+    setStep("result");
+    setLoading(false);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-[100dvh] bg-[#0a0a0a] text-white font-sans selection:bg-pink-500/30 overflow-hidden">
+      <div className="max-w-md mx-auto h-[100dvh] flex flex-col transition-all duration-500 relative">
+
+        {/* --- Home Step --- */}
+        {step === "home" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="flex-1 flex flex-col justify-center items-center p-8 text-center"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="w-24 h-24 bg-gradient-to-tr from-pink-500 to-violet-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-pink-500/20">
+              <BarChart className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 mb-2">
+              Counseling Trainer
+            </h1>
+            <p className="text-gray-400 mb-12 text-sm leading-relaxed">
+              AI顧客を相手に、メイクアップの接客スキルを磨きましょう。<br />音声対話で、よりリアルなトレーニングが可能です。
+            </p>
+            <button
+              onClick={startGacha}
+              className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 group shadow-xl"
+            >
+              トレーニングを開始
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </motion.div>
+        )}
+
+        {/* --- Gacha Step --- */}
+        {step === "gacha" && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col justify-center p-6"
           >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 blur-3xl -z-10" />
+              {loading ? (
+                <div className="flex flex-col items-center gap-4 py-12">
+                  <RefreshCw className="w-12 h-12 text-pink-500 animate-spin" />
+                  <p className="text-pink-500 font-medium animate-pulse">お客様をご案内中...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="text-pink-500 font-bold tracking-widest text-xs uppercase">New Customer Arrival</div>
+                  <h2 className="text-2xl font-bold">新しいお客様がご来店しました</h2>
+                  <div className="space-y-4 pt-4 border-t border-white/5 text-gray-300">
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-1">第一印象 / お悩み</span>
+                      <p className="text-lg text-white font-medium italic">「{persona?.surfaceNeed}」</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-1">お客様属性</span>
+                      <p className="text-sm">{persona?.basicInfo?.age} ・ {persona?.basicInfo?.occupation}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={startChat}
+                    className="w-full py-4 mt-4 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-pink-600/20"
+                  >
+                    カウンセリングを開始する
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* --- Chat Step --- */}
+        {step === "chat" && (
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Header / Emotion Meter */}
+            <div className="p-4 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl sticky top-0 z-10">
+              <div className="flex justify-between items-center mb-4 px-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-xs font-bold text-gray-400">SESSION IN PROGRESS</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setUseVoice(!useVoice)}
+                    className={`text-[10px] font-bold px-2 py-1 rounded border ${useVoice ? "border-pink-500 text-pink-500" : "border-gray-600 text-gray-600"}`}
+                  >
+                    {useVoice ? "VOICE ON" : "VOICE OFF"}
+                  </button>
+                  <button
+                    onClick={endSession}
+                    className="text-xs font-bold text-pink-500 hover:text-pink-400 transition-colors"
+                  >
+                    終了して採点へ
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-3 px-2">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                    <span>安心感 (Trust)</span>
+                    <span className={emotionalState.trust > 70 ? "text-green-400" : ""}>{emotionalState.trust}%</span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-blue-500 to-green-500"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${emotionalState.trust}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                    <span>警戒心 (Caution)</span>
+                    <span className={emotionalState.caution > 70 ? "text-red-400" : ""}>{emotionalState.caution}%</span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-red-500/80"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${emotionalState.caution}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth pb-32">
+              {messages.length === 0 && (
+                <div className="flex-1 flex items-center justify-center py-20 opacity-30 text-center px-8">
+                  <p className="text-sm">カウンセラー（あなた）から声をかけて開始してください。</p>
+                </div>
+              )}
+              {messages.map((m, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} items-end gap-2`}
+                >
+                  {m.role === "assistant" && (
+                    <div className={`w-8 h-8 rounded-full bg-[#1a1a1a] border ${isSpeaking ? "border-pink-500 shadow-[0_0_10px_rgba(219,39,119,0.3)]" : "border-white/10"} flex items-center justify-center text-gray-400 flex-shrink-0 transition-all`}>
+                      <User className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${m.role === "user"
+                    ? "bg-pink-600 text-white rounded-br-none shadow-lg shadow-pink-600/10"
+                    : "bg-[#1a1a1a] text-gray-200 border border-white/5 rounded-bl-none shadow-xl"
+                    }`}>
+                    {m.content}
+                  </div>
+                  {m.role === "user" && (
+                    <div className="w-8 h-8 rounded-full bg-pink-600 flex items-center justify-center text-white flex-shrink-0">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+              {loading && (
+                <div className="flex gap-2 items-center text-gray-500 text-xs px-10">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  入力中...
+                </div>
+              )}
+            </div>
+
+            {/* Input / Voice Bar */}
+            <div className="p-4 border-t border-white/5 bg-[#0a0a0a]/90 backdrop-blur-xl absolute bottom-0 left-0 right-0 max-w-md mx-auto">
+              <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 rounded-2xl px-2 py-2 shadow-2xl focus-within:border-pink-500/50 transition-colors">
+                <button
+                  type="button"
+                  onClick={startListening}
+                  className={`p-3 rounded-xl transition-all ${isListening ? "bg-red-500 text-white animate-pulse" : "bg-white/5 text-gray-400 hover:text-white"}`}
+                >
+                  <div className="flex items-center justify-center relative">
+                    {isListening && <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="absolute w-full h-full bg-red-500 rounded-full blur-md -z-10" />}
+                    <Send className={`w-5 h-5 ${isListening ? "rotate-90" : ""}`} />
+                  </div>
+                </button>
+                <input
+                  autoFocus
+                  className="flex-1 bg-transparent border-none outline-none text-sm py-2 placeholder:text-gray-600 ml-2"
+                  placeholder={isListening ? "音声を認識しています..." : "メッセージを入力..."}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                />
+                <button
+                  disabled={loading || !input.trim()}
+                  onClick={() => handleSendMessage()}
+                  className="p-3 bg-pink-600 hover:bg-pink-500 rounded-xl transition-all disabled:opacity-50"
+                >
+                  <ChevronRight className="w-5 h-5 text-white" />
+                </button>
+              </div>
+              <div className="mt-2 text-[10px] text-center text-gray-600 font-bold uppercase tracking-widest">
+                {isListening ? "Speaking..." : isSpeaking ? "Customer Speaking..." : "Input via Voice or Text"}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- Result Step --- */}
+        {step === "result" && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="flex-1 h-full overflow-y-auto p-6 space-y-8 pb-12"
+          >
+            <div className="text-center space-y-2 mt-4">
+              <div className="text-pink-500 font-bold tracking-widest text-[10px] uppercase">Session Results</div>
+              <h2 className="text-3xl font-black">カウンセリング結果</h2>
+            </div>
+
+            {/* Radar Chart */}
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-3xl p-6 shadow-2xl">
+              <div className="h-64 flex items-center justify-center">
+                {evaluation && (
+                  <Radar
+                    data={{
+                      labels: ["傾聴力", "共感力", "提案力"],
+                      datasets: [{
+                        label: 'あなたのスキル',
+                        data: [evaluation.scores.listening, evaluation.scores.empathy, evaluation.scores.proposal],
+                        backgroundColor: 'rgba(219, 39, 119, 0.2)',
+                        borderColor: 'rgb(219, 39, 119)',
+                        pointBackgroundColor: 'rgb(219, 39, 119)',
+                        pointBorderColor: '#fff',
+                      }]
+                    }}
+                    options={{
+                      scales: {
+                        r: {
+                          angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                          pointLabels: { color: '#888', font: { size: 12 } },
+                          ticks: { display: false, count: 5 },
+                          suggestedMin: 0,
+                          suggestedMax: 100
+                        }
+                      },
+                      plugins: { legend: { display: false } }
+                    }}
+                  />
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <div className="text-center bg-white/5 p-3 rounded-2xl">
+                  <div className="text-[10px] text-gray-500 uppercase font-bold">傾聴</div>
+                  <div className="text-xl font-bold">{evaluation?.scores?.listening ?? 0}</div>
+                </div>
+                <div className="text-center bg-white/5 p-3 rounded-2xl">
+                  <div className="text-[10px] text-gray-500 uppercase font-bold">共感</div>
+                  <div className="text-xl font-bold">{evaluation?.scores?.empathy ?? 0}</div>
+                </div>
+                <div className="text-center bg-white/5 p-3 rounded-2xl">
+                  <div className="text-[10px] text-gray-500 uppercase font-bold">提案</div>
+                  <div className="text-xl font-bold">{evaluation?.scores?.proposal ?? 0}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Hidden Needs Reveal */}
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#251a25] border border-pink-500/20 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+              <div className="text-xs font-bold text-pink-500 uppercase mb-3 flex items-center gap-2">
+                <RefreshCw className="w-3 h-3" />
+                隠れニーズ（答え合わせ）
+              </div>
+              <p className="text-white text-lg font-medium leading-relaxed italic mb-4">
+                「{persona?.hiddenNeed}」
+              </p>
+              <div className={`text-xs px-3 py-1.5 inline-block rounded-full font-bold ${evaluation?.hiddenNeedResults?.revealed ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                }`}>
+                {evaluation?.hiddenNeedResults?.revealed ? "✓ ニーズを引き出せました" : "✗ ニーズに届きませんでした"}
+              </div>
+              <p className="text-sm text-gray-400 mt-4 leading-relaxed">
+                {evaluation?.hiddenNeedResults?.description ?? "評価中..."}
+              </p>
+            </div>
+
+            {/* Feedbacks (Red Pen) */}
+            <div className="space-y-4">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest px-2">具体的な改善・アドバイス</div>
+              {evaluation?.feedbacks.map((f, i) => (
+                <div key={i} className="bg-[#1a1a1a] border border-white/5 p-5 rounded-2xl flex gap-4">
+                  <div className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-2 flex-shrink-0" />
+                  <p className="text-sm text-gray-300 leading-relaxed font-medium">{f}</p>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-200 transition-all shadow-xl mt-8"
+            >
+              ホームへ戻る
+            </button>
+          </motion.div>
+        )}
+      </div>
+    </main>
   );
 }
