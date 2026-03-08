@@ -11,9 +11,25 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Initialize Firebase safely
+let app;
+try {
+    if (getApps().length === 0) {
+        if (firebaseConfig.apiKey) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            console.warn("Firebase configuration is missing. Use of Firebase features will fail.");
+        }
+    } else {
+        app = getApp();
+    }
+} catch (error) {
+    console.error("Firebase initialization failed:", error);
+}
+
+// @ts-ignore
+const auth = app ? getAuth(app) : null;
+// @ts-ignore
+const db = app ? getFirestore(app) : null;
 
 export { auth, db };

@@ -187,6 +187,7 @@ export default function App() {
 
     // Create session in Firestore
     try {
+      if (!db) throw new Error("Database not initialized");
       const docRef = await addDoc(collection(db, "sessions"), {
         userId: user.uid,
         userName: user.displayName || user.email,
@@ -222,6 +223,7 @@ export default function App() {
 
     // Create session in Firestore
     try {
+      if (!db) throw new Error("Database not initialized");
       const docRef = await addDoc(collection(db, "sessions"), {
         userId: user.uid,
         userName: user.displayName || user.email,
@@ -313,7 +315,7 @@ export default function App() {
             className="flex-1 flex flex-col justify-center items-center p-8 text-center"
           >
             <div className="absolute top-6 right-6">
-              <button onClick={() => firebaseSignOut(auth)} className="text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">Sign Out</button>
+              <button onClick={() => auth && firebaseSignOut(auth)} className="text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">Sign Out</button>
             </div>
             <div className="w-24 h-24 bg-gradient-to-tr from-pink-500 to-violet-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-pink-500/20">
               <BarChart className="w-12 h-12 text-white" />
