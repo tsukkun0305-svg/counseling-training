@@ -1,80 +1,59 @@
-import { NextRequest, NextResponse } from "next/server";
-import { evaluatorModel } from "@/lib/gemini";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, serverTimestamp, setDoc, collection } from "firebase/firestore";
 
-export async function POST(req: NextRequest) {
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+export async function POST(req: Request) {
   try {
     const { messages, persona, sessionId } = await req.json();
 
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
     const prompt = `
-      あなたはメイクレッスン・サロンのプロ講師であり、スタッフのカウンセリング力を評価する試験官です。
-      以下の対話ログを分析し、スタッフを厳格に評価してください。
+    あなたはプロのメイクアップ接客講師です。
+    以下の美容部員とお客様の会話記録を分析し、評価を行ってください。
 
-      【顧客設定】
-      設定: ${JSON.stringify(persona)}
+    お客様設定:
+    ${JSON.stringify(persona)}
 
-      【対話ログ】
-      ${messages.map((m: any) => `${m.role === 'user' ? 'サロンスタッフ' : '顧客'}: ${m.content}`).join('\n')}
+    会話ログ:
+    ${JSON.stringify(messages)}
 
-      【評価のポイントと採点基準】
-      1. 関係構築 (Relationship Building): 
-         - 顧客の短い返答に対して適切に寄り添い、安心感を与え、話しやすい雰囲気を作れたか。
-      2. ニーズ喚起 (Needs Awakening): 
-         - 表面的な悩み（surfaceNeed）の解決だけでなく、その背景にある隠れた動機（hiddenNeed）を引き出せているか。
-      3. 提案の網羅性 (Proposal Scope): 
-         - 以下の2点以上を具体的に提案できているか。
-           a) お客様が希望・相談した箇所への回答
-           b) プロの（スタッフの）視点から提案・お勧めする箇所
-
-      【出力形式】
-      以下のJSON形式で回答してください：
-      {
-        "scores": {
-          "listening": 0-100, // 関係構築の評価
-          "empathy": 0-100,   // ニーズ喚起の評価
-          "proposal": 0-100   // 提案の網羅性の評価
-        },
-        "feedbacks": [
-          "『〇〇』という質問で、お客様の本当の悩みである『△△』を引き出すことに成功しています。",
-          "お客様の希望されたアイメイクへの回答に加え、プロの視点から眉の形を提案できており、基準を満たしています。",
-          ...
-        ],
-        "hiddenNeedResults": {
-          "revealed": true/false,
-          "description": "隠れニーズをどの程度引き出せたか、具体的な対話箇所に触れて述べてください。"
-        },
-        "summary": "総評"
-      }
-      必ずJSONのみを出力してください。
+    以下のJSON形式で出力してください：
+    {
+      "scores": { "listening": 数値(0-100), "empathy": 数値(0-100), "proposal": 数値(0-100) },
+      "feedbacks": ["フィードバック1", "フィードバック2", "フィードバック3"],
+      "hiddenNeedResults": { "revealed": 布林値, "description": "なぜその評価になったかの解説" },
+      "summary": "全体的な講評"
+    }
     `;
 
-    const result = await evaluatorModel.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    const evaluation = JSON.parse(text.replace(/```json|```/g, ""));
+    const result = await model.generateContent(prompt);
+    const data = JSON.parse(result.response.text());
 
-    // Save to DB if sessionId exists
+    // Save evaluation to Firestore and update session end time
     if (sessionId) {
-      await prisma.evaluation.create({
-        data: {
-          sessionId,
-          scoreListening: evaluation.scores.listening,
-          scoreEmpathy: evaluation.scores.empathy,
-          scoreProposal: evaluation.scores.proposal,
-          feedback: evaluation.feedbacks.join("\n"),
-          revealedNeed: evaluation.hiddenNeedResults.revealed,
-          summary: evaluation.summary,
-        }
+      const sessionRef = doc(db, "sessions", sessionId);
+      await updateDoc(sessionRef, {
+        endTime: serverTimestamp(),
       });
-      await prisma.session.update({
-        where: { id: sessionId },
-        data: { endTime: new Date() }
+
+      // Save evaluation as a sub-collection or separate doc
+      await setDoc(doc(db, "evaluations", sessionId), {
+        ...data,
+        sessionId,
+        createdAt: serverTimestamp(),
       });
     }
 
-    return NextResponse.json(evaluation);
-  } catch (error) {
+    return NextResponse.json(data);
+  } catch (error: any) {
     console.error("Evaluation error:", error);
-    return NextResponse.json({ error: "Failed to evaluate" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

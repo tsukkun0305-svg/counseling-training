@@ -34,12 +34,16 @@ type Evaluation = {
   summary: string;
 };
 
-import { useSession, signOut } from "next-auth/react";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged, signOut as firebaseSignOut, User as FirebaseUser } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 export default function App() {
-  const { data: session, status } = useSession();
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const router = useRouter();
+
   const [step, setStep] = useState<"home" | "gacha" | "customize" | "chat" | "result">("home");
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -71,15 +75,25 @@ export default function App() {
   const [recognition, setRecognition] = useState<any>(null);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-    if (session?.user && (session.user as any).role === "admin") {
-      setIsAdmin(true);
-    }
-  }, [status, session, router]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setAuthStatus("authenticated");
+        // Check for admin role (simulated or via custom claims/firestore)
+        if (currentUser.email === "admin@example.com") {
+          setIsAdmin(true);
+        }
+      } else {
+        setUser(null);
+        setAuthStatus("unauthenticated");
+        router.push("/auth/signin");
+      }
+    });
 
-  if (status === "loading") {
+    return () => unsubscribe();
+  }, [router]);
+
+  if (authStatus === "loading") {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
         <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
@@ -112,7 +126,6 @@ export default function App() {
     window.speechSynthesis.speak(uttr);
   };
 
-  const [recognition, setRecognition] = useState<any>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -167,21 +180,27 @@ export default function App() {
   };
 
   const startChat = async () => {
-    if (!persona) return;
+    if (!persona || !user) return;
     unlockVoice();
     setMessages([]);
     setStep("chat");
 
-    // Create session in DB
-    const sessionRes = await fetch("/api/sessions", {
-      method: "POST",
-      body: JSON.stringify({ personaData: JSON.stringify(persona) }),
-    });
-    const sessionData = await sessionRes.json();
-    setCurrentSessionId(sessionData.id);
+    // Create session in Firestore
+    try {
+      const docRef = await addDoc(collection(db, "sessions"), {
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        personaData: JSON.stringify(persona),
+        startTime: serverTimestamp(),
+      });
+      setCurrentSessionId(docRef.id);
+    } catch (e) {
+      console.error("Firestore Error:", e);
+    }
   };
 
   const handleCustomStart = async () => {
+    if (!user) return;
     const newPersona = {
       basicInfo: {
         age: customPersona.age,
@@ -201,13 +220,18 @@ export default function App() {
     setStep("chat");
     unlockVoice();
 
-    // Create session in DB
-    const sessionRes = await fetch("/api/sessions", {
-      method: "POST",
-      body: JSON.stringify({ personaData: JSON.stringify(newPersona) }),
-    });
-    const sessionData = await sessionRes.json();
-    setCurrentSessionId(sessionData.id);
+    // Create session in Firestore
+    try {
+      const docRef = await addDoc(collection(db, "sessions"), {
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        personaData: JSON.stringify(newPersona),
+        startTime: serverTimestamp(),
+      });
+      setCurrentSessionId(docRef.id);
+    } catch (e) {
+      console.error("Firestore Error:", e);
+    }
   };
 
   const handleAdminLogin = () => {
@@ -289,13 +313,13 @@ export default function App() {
             className="flex-1 flex flex-col justify-center items-center p-8 text-center"
           >
             <div className="absolute top-6 right-6">
-              <button onClick={() => signOut()} className="text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">Sign Out</button>
+              <button onClick={() => firebaseSignOut(auth)} className="text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">Sign Out</button>
             </div>
             <div className="w-24 h-24 bg-gradient-to-tr from-pink-500 to-violet-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-pink-500/20">
               <BarChart className="w-12 h-12 text-white" />
             </div>
             <div className="mb-2">
-              <span className="text-[10px] font-bold text-pink-500 uppercase tracking-[0.2em]">Welcome, {session?.user?.name}</span>
+              <span className="text-[10px] font-bold text-pink-500 uppercase tracking-[0.2em]">Welcome, {user?.displayName || user?.email}</span>
             </div>
             <h1
               onClick={handleTitleClick}

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { UserPlus, User, Mail, Lock, ArrowRight, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { auth, db } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function SignUp() {
     const [name, setName] = useState("");
@@ -18,22 +21,26 @@ export default function SignUp() {
         setLoading(true);
 
         try {
-            const res = await fetch("/api/auth/signup", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, password }),
+            // 1. Create user in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // 2. Update profile name
+            await updateProfile(user, { displayName: name });
+
+            // 3. Create user document in Firestore for roles
+            await setDoc(doc(db, "users", user.uid), {
+                name,
+                email,
+                role: "staff", // Default role
+                createdAt: new Date().toISOString(),
             });
 
-            const data = await res.json();
-
-            if (res.ok) {
-                alert("登録が完了しました！ログインしてください。");
-                router.push("/auth/signin");
-            } else {
-                alert(data.error || "登録に失敗しました。");
-            }
-        } catch (error) {
-            alert("エラーが発生しました。");
+            alert("登録が完了しました！");
+            router.push("/");
+        } catch (error: any) {
+            console.error("Firebase Sign-up error:", error);
+            alert(error.message || "登録に失敗しました。");
         } finally {
             setLoading(false);
         }

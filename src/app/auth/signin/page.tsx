@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { LogIn, User, Lock, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function SignIn() {
     const [email, setEmail] = useState("");
@@ -16,18 +17,16 @@ export default function SignIn() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const result = await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-        });
 
-        if (result?.error) {
-            alert("ログインに失敗しました。メールアドレスまたはパスワードが正しくありません。");
-            setLoading(false);
-        } else {
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
             router.push("/");
             router.refresh();
+        } catch (error: any) {
+            console.error("Firebase Sign-in error:", error);
+            alert("ログインに失敗しました。メールアドレスまたはパスワードが正しくありません。");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -92,7 +91,7 @@ export default function SignIn() {
                         Create new staff account
                     </Link>
                     <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">
-                        Testing Admin: admin@example.com / admin123
+                        Please register your staff account
                     </p>
                 </div>
             </motion.div>
