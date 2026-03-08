@@ -161,16 +161,22 @@ export default function App() {
     const res = await fetch("/api/persona", { method: "POST" });
     const data = await res.json();
     setPersona(data);
+    setLoading(false);
+  };
+
+  const startChat = async () => {
+    if (!persona) return;
+    unlockVoice();
+    setMessages([]);
+    setStep("chat");
 
     // Create session in DB
     const sessionRes = await fetch("/api/sessions", {
       method: "POST",
-      body: JSON.stringify({ personaData: JSON.stringify(data) }),
+      body: JSON.stringify({ personaData: JSON.stringify(persona) }),
     });
     const sessionData = await sessionRes.json();
     setCurrentSessionId(sessionData.id);
-
-    setLoading(false);
   };
 
   const handleCustomStart = async () => {
