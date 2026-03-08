@@ -47,23 +47,6 @@ export default function App() {
   const [titleTapCount, setTitleTapCount] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin");
-    }
-    if (session?.user && (session.user as any).role === "admin") {
-      setIsAdmin(true);
-    }
-  }, [status, session, router]);
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
-        <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
-        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">Authenticating...</p>
-      </div>
-    );
-  }
   const [customPersona, setCustomPersona] = useState({
     age: "30代",
     occupation: "会社員",
@@ -85,6 +68,25 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [useVoice, setUseVoice] = useState(true);
+  const [recognition, setRecognition] = useState<any>(null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    }
+    if (session?.user && (session.user as any).role === "admin") {
+      setIsAdmin(true);
+    }
+  }, [status, session, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
+        <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
+        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">Authenticating...</p>
+      </div>
+    );
+  }
 
   // --- Handlers ---
   const unlockVoice = () => {
