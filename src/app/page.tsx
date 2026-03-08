@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight, Mic } from "lucide-react";
+import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight, Mic, Sparkles, Settings2 } from "lucide-react";
 import { Radar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -35,7 +35,21 @@ type Evaluation = {
 };
 
 export default function App() {
-  const [step, setStep] = useState<"home" | "gacha" | "chat" | "result">("home");
+  const [step, setStep] = useState<"home" | "gacha" | "customize" | "chat" | "result">("home");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [titleTapCount, setTitleTapCount] = useState(0);
+  const [customPersona, setCustomPersona] = useState({
+    age: "30代",
+    occupation: "会社員",
+    lifestyle: "平日はオフィス勤務、週末は外出が多い",
+    personality: "控えめ",
+    tone: "丁寧だが最小限の返答",
+    surfaceNeed: "垢抜けた印象にしたい",
+    hiddenNeed: "来月、大切な友人の結婚式がある",
+    initialImpression: "今日はよろしくお願いします。自分に似合うメイクがわからなくて..."
+  });
   const [persona, setPersona] = useState<Persona | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -146,8 +160,26 @@ export default function App() {
     unlockVoice();
   };
 
-  const applyPreset = (preset: any) => {
-    setCustomPersona(prev => ({ ...prev, ...preset }));
+  const handleAdminLogin = () => {
+    if (adminPassword === "admin123") {
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      setAdminPassword("");
+    } else {
+      alert("パスワードが違います");
+    }
+  };
+
+  const handleTitleClick = () => {
+    const nextCount = titleTapCount + 1;
+    if (nextCount >= 5) {
+      setShowAdminLogin(true);
+      setTitleTapCount(0);
+    } else {
+      setTitleTapCount(nextCount);
+      // Reset count after 2 seconds of inactivity
+      setTimeout(() => setTitleTapCount(0), 2000);
+    }
   };
 
   const handleSendMessage = async (overrideInput?: string) => {
@@ -209,19 +241,49 @@ export default function App() {
             <div className="w-24 h-24 bg-gradient-to-tr from-pink-500 to-violet-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-pink-500/20">
               <BarChart className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 mb-2">
+            <h1
+              onClick={handleTitleClick}
+              className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 mb-2 cursor-pointer select-none active:scale-95 transition-transform"
+            >
               Counseling Trainer
             </h1>
-            <p className="text-gray-400 mb-12 text-sm leading-relaxed">
+            <p className="text-gray-400 mb-8 text-sm leading-relaxed">
               AI顧客を相手に、メイクアップの接客スキルを磨きましょう。<br />音声対話で、よりリアルなトレーニングが可能です。
             </p>
-            <button
-              onClick={startGacha}
-              className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 group shadow-xl"
-            >
-              トレーニングを開始
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+
+            {/* Admin Login Dialog */}
+            {showAdminLogin && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="mb-8 w-full bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col gap-3">
+                <input
+                  type="password"
+                  placeholder="管理者パスワード"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="bg-black/50 border border-white/10 rounded-xl p-3 text-sm"
+                />
+                <button onClick={handleAdminLogin} className="bg-white text-black py-2 rounded-xl text-xs font-bold">認証する</button>
+              </motion.div>
+            )}
+
+            <div className="flex flex-col gap-4 w-full">
+              <button
+                onClick={startGacha}
+                className="w-full py-4 bg-white text-black font-bold rounded-2xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 group shadow-xl"
+              >
+                トレーニングを開始
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {isAdmin && (
+                <button
+                  onClick={() => setStep("customize")}
+                  className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 font-bold rounded-2xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Settings2 className="w-5 h-5" />
+                  お客様を詳細設定する (管理者用)
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
 
