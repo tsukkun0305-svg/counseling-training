@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { evaluatorModel } from "@/lib/gemini";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, persona } = await req.json();
+    const { messages, persona, sessionId } = await req.json();
 
     const prompt = `
       あなたはメイクレッスン・サロンのプロ講師であり、スタッフのカウンセリング力を評価する試験官です。
@@ -51,6 +52,25 @@ export async function POST(req: NextRequest) {
     const response = await result.response;
     const text = response.text();
     const evaluation = JSON.parse(text.replace(/```json|```/g, ""));
+
+    // Save to DB if sessionId exists
+    if (sessionId) {
+      await prisma.evaluation.create({
+        data: {
+          sessionId,
+          scoreListening: evaluation.scores.listening,
+          scoreEmpathy: evaluation.scores.empathy,
+          scoreProposal: evaluation.scores.proposal,
+          feedback: evaluation.feedbacks.join("\n"),
+          revealedNeed: evaluation.hiddenNeedResults.revealed,
+          summary: evaluation.summary,
+        }
+      });
+      await prisma.session.update({
+        where: { id: sessionId },
+        data: { endTime: new Date() }
+      });
+    }
 
     return NextResponse.json(evaluation);
   } catch (error) {

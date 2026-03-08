@@ -34,12 +34,36 @@ type Evaluation = {
   summary: string;
 };
 
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 export default function App() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [step, setStep] = useState<"home" | "gacha" | "customize" | "chat" | "result">("home");
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
   const [titleTapCount, setTitleTapCount] = useState(0);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    }
+    if (session?.user && (session.user as any).role === "admin") {
+      setIsAdmin(true);
+    }
+  }, [status, session, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
+        <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
+        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">Authenticating...</p>
+      </div>
+    );
+  }
   const [customPersona, setCustomPersona] = useState({
     age: "30代",
     occupation: "会社員",
@@ -131,17 +155,26 @@ export default function App() {
   };
 
   const startGacha = async () => {
-    unlockVoice(); // Unlock TTS engine on user interaction
+    unlockVoice();
     setLoading(true);
     setStep("gacha");
     const res = await fetch("/api/persona", { method: "POST" });
     const data = await res.json();
     setPersona(data);
+
+    // Create session in DB
+    const sessionRes = await fetch("/api/sessions", {
+      method: "POST",
+      body: JSON.stringify({ personaData: JSON.stringify(data) }),
+    });
+    const sessionData = await sessionRes.json();
+    setCurrentSessionId(sessionData.id);
+
     setLoading(false);
   };
 
-  const handleCustomStart = () => {
-    setPersona({
+  const handleCustomStart = async () => {
+    const newPersona = {
       basicInfo: {
         age: customPersona.age,
         occupation: customPersona.occupation,
@@ -154,10 +187,19 @@ export default function App() {
       surfaceNeed: customPersona.surfaceNeed,
       hiddenNeed: customPersona.hiddenNeed,
       initialImpression: customPersona.initialImpression
-    });
+    };
+    setPersona(newPersona);
     setMessages([]);
     setStep("chat");
     unlockVoice();
+
+    // Create session in DB
+    const sessionRes = await fetch("/api/sessions", {
+      method: "POST",
+      body: JSON.stringify({ personaData: JSON.stringify(newPersona) }),
+    });
+    const sessionData = await sessionRes.json();
+    setCurrentSessionId(sessionData.id);
   };
 
   const handleAdminLogin = () => {
@@ -220,7 +262,7 @@ export default function App() {
     setLoading(true);
     const res = await fetch("/api/evaluate", {
       method: "POST",
-      body: JSON.stringify({ messages, persona }),
+      body: JSON.stringify({ messages, persona, sessionId: currentSessionId }),
     });
     const data = await res.json();
     setEvaluation(data);
@@ -238,8 +280,14 @@ export default function App() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="flex-1 flex flex-col justify-center items-center p-8 text-center"
           >
+            <div className="absolute top-6 right-6">
+              <button onClick={() => signOut()} className="text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-white transition-colors">Sign Out</button>
+            </div>
             <div className="w-24 h-24 bg-gradient-to-tr from-pink-500 to-violet-600 rounded-3xl mb-8 flex items-center justify-center shadow-2xl shadow-pink-500/20">
               <BarChart className="w-12 h-12 text-white" />
+            </div>
+            <div className="mb-2">
+              <span className="text-[10px] font-bold text-pink-500 uppercase tracking-[0.2em]">Welcome, {session?.user?.name}</span>
             </div>
             <h1
               onClick={handleTitleClick}

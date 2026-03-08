@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  password      String?
+  role          String    @default("staff") // "admin" or "staff"
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+}
+
+model Session {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  personaData  String      // JSON string of the customer persona
+  startTime    DateTime    @default(now())
+  endTime      DateTime?
+  evaluation   Evaluation?
+}
+
+model Evaluation {
+  id             String   @id @default(cuid())
+  sessionId      String   @unique
+  session        Session  @relation(fields: [sessionId], references: [id])
+  scoreListening Int
+  scoreEmpathy   Int
+  scoreProposal  Int
+  feedback       String   // Multi-line feedback
+  revealedNeed   Boolean
+  summary        String
+  createdAt      DateTime @default(now())
+}
