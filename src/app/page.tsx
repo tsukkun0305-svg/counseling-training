@@ -100,23 +100,19 @@ export default function App() {
     }
   }, []);
 
-  const handleStartListening = () => {
+  const toggleListening = () => {
     if (!recognition) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) return alert("音声認識非対応のブラウザです。");
-      recognition?.start();
       return;
     }
-    recognition.start();
-  };
-
-  const handleStopListening = () => {
-    if (recognition) {
+    if (isListening) {
       recognition.stop();
-      // Use current input value for sending when released
       if (input.trim()) {
         handleSendMessage(input);
       }
+    } else {
+      recognition.start();
     }
   };
 
