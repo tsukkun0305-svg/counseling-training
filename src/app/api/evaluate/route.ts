@@ -9,6 +9,11 @@ export async function POST(req: Request) {
   try {
     const { messages, persona, sessionId } = await req.json();
 
+    if (!db) {
+      console.error("Firestore DB is not initialized");
+      return NextResponse.json({ error: "Database not initialized" }, { status: 500 });
+    }
+
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
       generationConfig: { responseMimeType: "application/json" }

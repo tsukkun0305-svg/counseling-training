@@ -9,6 +9,11 @@ export async function POST(req: Request) {
     try {
         const { userId, userName, personaData } = await req.json();
 
+        if (!db) {
+            console.error("Firestore DB is not initialized");
+            return NextResponse.json({ error: "Database not initialized" }, { status: 500 });
+        }
+
         // Since we now do this client-side in page.tsx, this route might be redundant,
         // but I'll keep it for better structure or if client-side Firestore is restricted.
         const docRef = await addDoc(collection(db, "sessions"), {
