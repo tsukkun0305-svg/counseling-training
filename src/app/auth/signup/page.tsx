@@ -49,9 +49,10 @@ export default function SignUp() {
 
             alert("登録が完了しました！");
             router.push("/");
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Firebase Sign-up error:", error);
-            alert(error.message || "登録に失敗しました。");
+            const message = error instanceof Error ? error.message : "登録に失敗しました。";
+            alert(message);
         } finally {
             setLoading(false);
         }

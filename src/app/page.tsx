@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { User, Bot, RefreshCw, BarChart, ChevronRight, Mic, Settings2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
@@ -40,7 +40,7 @@ type Evaluation = {
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut as firebaseSignOut, User as FirebaseUser } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { addDoc, serverTimestamp, collection } from "firebase/firestore";
 
 export default function App() {
   const [mounted, setMounted] = useState(false);
@@ -55,16 +55,7 @@ export default function App() {
   const [titleTapCount, setTitleTapCount] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
-  const [customPersona] = useState({
-    age: "30代",
-    occupation: "会社員",
-    lifestyle: "平日はオフィス勤務、週末は外出が多い",
-    personality: "控えめ",
-    tone: "丁寧だが最小限の返答",
-    surfaceNeed: "垢抜けた印象にしたい",
-    hiddenNeed: "来月、大切な友人の結婚式がある",
-    initialImpression: "今日はよろしくお願いします。自分に似合うメイクがわからなくて..."
-  });
+  // customPersona removed - will be re-added when customize feature is built
   const [persona, setPersona] = useState<Persona | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");

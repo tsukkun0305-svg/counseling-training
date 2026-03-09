@@ -33,7 +33,7 @@ export default function SignIn() {
             await signInWithEmailAndPassword(auth, email, password);
             router.push("/");
             router.refresh();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Firebase Sign-in error:", error);
             alert("ログインに失敗しました。メールアドレスまたはパスワードが正しくありません。");
         } finally {
