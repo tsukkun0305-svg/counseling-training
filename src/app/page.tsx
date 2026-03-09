@@ -40,6 +40,7 @@ import { useRouter } from "next/navigation";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 export default function App() {
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const router = useRouter();
