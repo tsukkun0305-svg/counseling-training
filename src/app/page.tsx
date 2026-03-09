@@ -14,7 +14,8 @@ import {
   Legend,
 } from "chart.js";
 
-ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+
+// ChartJS registration will happen inside the component on mount
 
 // --- Types ---
 type Persona = {
@@ -76,6 +77,7 @@ export default function App() {
   const [recognition, setRecognition] = useState<any>(null);
 
   useEffect(() => {
+    ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
     setMounted(true);
   }, []);
 
