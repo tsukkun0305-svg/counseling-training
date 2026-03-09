@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight, Mic, Sparkles, Settings2 } from "lucide-react";
-import { Radar } from "react-chartjs-2";
+import dynamic from "next/dynamic";
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -13,6 +13,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+
+const Radar = dynamic(() => import("react-chartjs-2").then(mod => mod.Radar), { ssr: false });
 
 
 // ChartJS registration will happen inside the component on mount
