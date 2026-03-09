@@ -83,7 +83,7 @@ export default function App() {
       setAuthStatus("unauthenticated");
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth!, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         setAuthStatus("authenticated");

@@ -18,6 +18,10 @@ export default function SignUp() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!auth || !db) {
+            alert("Firebaseが初期化されていません。環境変数を確認してください。");
+            return;
+        }
         setLoading(true);
 
         try {
