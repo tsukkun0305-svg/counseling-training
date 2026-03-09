@@ -75,6 +75,14 @@ export default function App() {
   const [recognition, setRecognition] = useState<any>(null);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!auth) {
+      setAuthStatus("unauthenticated");
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -93,11 +101,13 @@ export default function App() {
     return () => unsubscribe();
   }, [router]);
 
-  if (authStatus === "loading") {
+  if (!mounted || authStatus === "loading") {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
         <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
-        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">Authenticating...</p>
+        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">
+          {!mounted ? "Loading UI..." : "Authenticating..."}
+        </p>
       </div>
     );
   }
