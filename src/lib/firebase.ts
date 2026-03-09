@@ -27,9 +27,7 @@ try {
     console.error("Firebase initialization failed:", error);
 }
 
-// @ts-ignore
 const auth = app ? getAuth(app) : null;
-// @ts-ignore
 const db = app ? getFirestore(app) : null;
 
 export { auth, db };

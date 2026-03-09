@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Bot, Send, ArrowRight, RefreshCw, BarChart, ChevronRight, Mic, Sparkles, Settings2 } from "lucide-react";
+import { User, Bot, RefreshCw, BarChart, ChevronRight, Mic, Settings2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
   Chart as ChartJS,
@@ -55,7 +55,7 @@ export default function App() {
   const [titleTapCount, setTitleTapCount] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
-  const [customPersona, setCustomPersona] = useState({
+  const [customPersona] = useState({
     age: "30代",
     occupation: "会社員",
     lifestyle: "平日はオフィス勤務、週末は外出が多い",
@@ -76,7 +76,7 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [useVoice, setUseVoice] = useState(true);
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
   useEffect(() => {
     ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
@@ -106,17 +106,6 @@ export default function App() {
     return () => unsubscribe();
   }, [router]);
 
-  if (!mounted || authStatus === "loading") {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
-        <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
-        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">
-          {!mounted ? "Loading UI..." : "Authenticating..."}
-        </p>
-      </div>
-    );
-  }
-
   // --- Handlers ---
   const unlockVoice = () => {
     if (typeof window === "undefined" || !useVoice) return;
@@ -141,25 +130,24 @@ export default function App() {
     window.speechSynthesis.speak(uttr);
   };
 
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const rec = new SpeechRecognition();
         rec.lang = "ja-JP";
-        rec.continuous = true; // Stay active while button is held
+        rec.continuous = true;
         rec.interimResults = true;
 
         rec.onstart = () => setIsListening(true);
         rec.onend = () => setIsListening(false);
-        rec.onerror = (e: any) => {
+        rec.onerror = (e: { error: string }) => {
           console.error("Speech error", e);
           setIsListening(false);
         };
-        rec.onresult = (event: any) => {
-          const transcript = Array.from(event.results)
-            .map((result: any) => result[0].transcript)
+        rec.onresult = (event: { results: Iterable<SpeechRecognitionResult> }) => {
+          const transcript = Array.from(event.results as unknown as SpeechRecognitionResultList)
+            .map((result: SpeechRecognitionResult) => result[0].transcript)
             .join("");
           setInput(transcript);
         };
@@ -167,6 +155,17 @@ export default function App() {
       }
     }
   }, []);
+
+  if (!mounted || authStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
+        <RefreshCw className="w-12 h-12 text-pink-500 animate-spin mb-4" />
+        <p className="text-pink-500 font-medium animate-pulse tracking-widest text-xs uppercase">
+          {!mounted ? "Loading UI..." : "Authenticating..."}
+        </p>
+      </div>
+    );
+  }
 
   const toggleListening = () => {
     if (!recognition) {
@@ -215,41 +214,7 @@ export default function App() {
     }
   };
 
-  const handleCustomStart = async () => {
-    if (!user) return;
-    const newPersona = {
-      basicInfo: {
-        age: customPersona.age,
-        occupation: customPersona.occupation,
-        lifestyle: customPersona.lifestyle
-      },
-      personality: {
-        type: customPersona.personality,
-        tone: customPersona.tone
-      },
-      surfaceNeed: customPersona.surfaceNeed,
-      hiddenNeed: customPersona.hiddenNeed,
-      initialImpression: customPersona.initialImpression
-    };
-    setPersona(newPersona);
-    setMessages([]);
-    setStep("chat");
-    unlockVoice();
-
-    // Create session in Firestore
-    try {
-      if (!db) throw new Error("Database not initialized");
-      const docRef = await addDoc(collection(db, "sessions"), {
-        userId: user.uid,
-        userName: user.displayName || user.email,
-        personaData: JSON.stringify(newPersona),
-        startTime: serverTimestamp(),
-      });
-      setCurrentSessionId(docRef.id);
-    } catch (e) {
-      console.error("Firestore Error:", e);
-    }
-  };
+  // handleCustomStart removed as it was unused and causing lint errors
 
   const handleAdminLogin = () => {
     if (adminPassword === "admin123") {
