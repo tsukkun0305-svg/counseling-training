@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, serverTimestamp, setDoc, collection } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, setDoc } from "firebase/firestore";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 

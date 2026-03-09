@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     const result = await customerModel.generateContent([
       { text: systemPrompt },
-      ...messages.map((m: any) => ({ text: `${m.role === 'user' ? '美容部員' : 'あなた'}: ${m.content}` }))
+      ...messages.map((m: { role: string; content: string }) => ({ text: `${m.role === 'user' ? '美容部員' : 'あなた'}: ${m.content}` }))
     ]);
 
     const response = await result.response;

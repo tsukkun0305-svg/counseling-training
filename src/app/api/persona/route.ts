@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { customerModel } from "@/lib/gemini";
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   try {
     const prompt = `
       あなたはメイクレッスン・サロンの顧客ペルソナ生成器です。
