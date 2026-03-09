@@ -132,7 +132,7 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition; // eslint-disable-line @typescript-eslint/no-explicit-any
       if (SpeechRecognition) {
         const rec = new SpeechRecognition();
         rec.lang = "ja-JP";
@@ -169,7 +169,7 @@ export default function App() {
 
   const toggleListening = () => {
     if (!recognition) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition; // eslint-disable-line @typescript-eslint/no-explicit-any
       if (!SpeechRecognition) return alert("音声認識非対応のブラウザです。");
       return;
     }
